@@ -35,6 +35,7 @@ struct Config {
     ct_icp::TIME_UNIT unit = ct_icp::SECONDS;
     bool check_timestamp_consistency = true;
     double expected_frame_time_sec = 0.1;
+    double time_offset = 0.0;
 } config;
 
 /* ------------------------------------------------------------------------------------------------------------------ */
@@ -65,7 +66,17 @@ void RegisterNewFrameCallback(const sensor_msgs::PointCloud2Ptr &pc_ptr) {
     if (debug_print)
         ROS_INFO_STREAM("Received Point Cloud Message!");
     std::lock_guard<std::mutex> guard{registration_mutex};
-    auto &pointcloud2 = *const_cast<sensor_msgs::PointCloud2Ptr &>(pc_ptr);
+    
+    sensor_msgs::PointCloud2Ptr pc_ptr_new(new sensor_msgs::PointCloud2);
+    *pc_ptr_new = *pc_ptr;
+
+    if (config.time_offset != 0)
+    {
+        pc_ptr_new->header.stamp = pc_ptr_new->header.stamp + ros::Duration(config.time_offset);
+        printf("Timestamp. Old %f. New: %f\n", pc_ptr->header.stamp.toSec(), pc_ptr_new->header.stamp.toSec());
+    }
+
+    auto &pointcloud2 = *const_cast<sensor_msgs::PointCloud2Ptr &>(pc_ptr_new);
     auto stamp = pointcloud2.header.stamp;
     auto stamp_sec = slam::ROSTimeToSeconds(stamp);
     auto pointcloud = slam::ROSCloud2ToSlamPointCloudShallow(pointcloud2);
@@ -315,6 +326,7 @@ void InitializeNode(ros::NodeHandle &public_nh, ros::NodeHandle &nh) {
             FIND_OPTION(node, config, failure_output_dir, std::string)
             FIND_OPTION(node, config, output_state_on_failure, bool)
             FIND_OPTION(node, config, check_timestamp_consistency, bool)
+            FIND_OPTION(node, config, time_offset, double)
             config.unit = ct_icp::TimeUnitFromNode(node, "unit");
 
         } catch (...) {
