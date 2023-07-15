@@ -1,0 +1,31 @@
+<!-- Launches the Lidar-Only SLAM with default parameters on NHCD rosbag -->
+<launch>
+
+  <arg name="rosbag"         default="/media/tmn/mySataSSD2/DATASETS/MCDVIRAL/PublishedSequencesUnzipped/ntu_day_01/ntu_day_01_os1_128.bag" />
+  <arg name="rate"           default="1.0" />
+  <arg name="start_sec"      default="0." />
+  <arg name="kill_on_finish" default="false" />
+
+  <arg name="pc_topic"       default="/os_cloud_node/points" />
+  <arg name="config"         default="$(find ct_icp_odometry)/params/ct_icp/mcdviral_config.yaml" />
+  <arg name="timestamp_property_name" default="t" />
+
+  <arg name="debug_print" default="false" />
+
+
+  <!-- CT-ICP SLAM -->
+  <node name="ct_icp_odometry_node" pkg="ct_icp_odometry" type="ct_icp_odometry_node" output="screen">
+    <remap from="/ct_icp/pointcloud" to="$(arg pc_topic)" />
+    <param name="config" value="$(arg config)" />
+    <param name="timestamps_element"  value="properties" />
+    <param name="timestamps_property" value="$(arg timestamp_property_name)" />
+    <param name="debug_print" value="$(arg debug_print)" />
+  </node>
+
+  <node pkg="rviz" type="rviz" name="rviz" args="-d $(find ct_icp_odometry)/params/ct_icp_odometry.rviz" />
+
+  <!-- Rosbag dataset -->
+  <node name="player" pkg="rosbag" type="play" output="screen" required="$(arg kill_on_finish)"
+        args="-r $(arg rate) -s $(arg start_sec) $(arg rosbag) "/>
+
+</launch>
